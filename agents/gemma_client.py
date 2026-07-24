@@ -6,6 +6,8 @@ import base64
 import json
 import mimetypes
 import os
+import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -111,20 +113,44 @@ def chat(
         "Content-Type": "application/json",
     }
 
-    try:
-        with httpx.Client(timeout=120.0) as client:
-            response = client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPStatusError as exc:
-        body = exc.response.text[:500] if exc.response is not None else ""
-        raise GemmaClientError(
-            f"Gemma API HTTP {exc.response.status_code}: {body}"
-        ) from exc
-    except httpx.HTTPError as exc:
-        raise GemmaClientError(f"Gemma API request failed: {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise GemmaClientError(f"Gemma API returned non-JSON: {exc}") from exc
+    _max_retries = 3
+    _last_exc: Exception | None = None
+    for attempt in range(_max_retries + 1):
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                response = client.post(url, headers=headers, json=payload)
+
+                # Transparent retry on 429 rate-limit
+                if response.status_code == 429:
+                    body = response.text
+                    # Extract retry delay from API message, e.g. "retry in 54.1s"
+                    match = re.search(r"retry in ([\d.]+)s", body, re.IGNORECASE)
+                    wait_s = float(match.group(1)) if match else (20 * (attempt + 1))
+                    wait_s = min(wait_s, 65)  # cap at 65 s
+                    if attempt < _max_retries:
+                        time.sleep(wait_s)
+                        continue
+                    # All retries exhausted — surface the 429
+                    raise GemmaClientError(f"Gemma API HTTP 429: {body[:500]}")
+
+                response.raise_for_status()
+                return response.json()
+        except GemmaClientError:
+            raise
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text[:500] if exc.response is not None else ""
+            raise GemmaClientError(
+                f"Gemma API HTTP {exc.response.status_code}: {body}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            _last_exc = exc
+            if attempt < _max_retries:
+                time.sleep(5 * (attempt + 1))
+                continue
+            raise GemmaClientError(f"Gemma API request failed: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise GemmaClientError(f"Gemma API returned non-JSON: {exc}") from exc
+    raise GemmaClientError(f"Gemma API request failed after retries: {_last_exc}")
 
 
 def chat_vision_json(
@@ -260,3 +286,46 @@ def chat_text(system_prompt: str, user_prompt: str) -> str:
     if not isinstance(content, str) or not content.strip():
         raise GemmaClientError("Gemma returned empty text content")
     return content.strip()
+
+
+def chat_json(system_prompt: str, user_prompt: str) -> dict[str, Any]:
+    """
+    Call Gemma with system and user prompts, demanding JSON output.
+    """
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+    raw = chat(messages, response_format={"type": "json_object"}, temperature=0.1)
+    try:
+        content = raw["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise GemmaClientError(f"Unexpected Gemma JSON response shape: {raw}") from exc
+
+    if isinstance(content, list):
+        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+
+    cleaned = content.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise GemmaClientError(f"Could not parse JSON from model: {exc}. Raw: {cleaned[:300]}") from exc
+
+    if isinstance(parsed, list):
+        dicts = [item for item in parsed if isinstance(item, dict)]
+        if dicts:
+            parsed = dicts[0]
+        else:
+            raise GemmaClientError("Model JSON was a list but contained no objects")
+
+    if not isinstance(parsed, dict):
+        raise GemmaClientError("Model JSON was not an object")
+    return {"parsed": parsed, "raw_response": raw}
