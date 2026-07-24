@@ -91,7 +91,7 @@ export default function FloatingChatbot() {
             shadowColor: c.shadow,
           },
         ]}>
-        <Ionicons name="sparkles" size={24} color="#FFFDF8" />
+        <Ionicons name="logo-electron" size={24} color="#FFFDF8" />
       </Pressable>
 
       {/* ── CHAT PANEL MODAL ────────────────────────────────────── */}
@@ -109,7 +109,7 @@ export default function FloatingChatbot() {
             <View style={[styles.header, { borderBottomColor: c.border }]}>
               <View style={styles.headerLeft}>
                 <View style={[styles.sparkleWrap, { backgroundColor: c.tint + '18' }]}>
-                  <Ionicons name="sparkles" size={18} color={c.tint} />
+                  <Ionicons name="logo-electron" size={18} color={c.tint} />
                 </View>
                 <View>
                   <Text style={[styles.headerTitle, { color: c.text }]}>Mizani AI</Text>

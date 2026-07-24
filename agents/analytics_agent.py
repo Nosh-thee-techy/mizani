@@ -191,7 +191,11 @@ def build_overview(period_days: int = DEFAULT_DIGEST_DAYS) -> dict[str, Any]:
     except sqlite3.Error as exc:
         raise RuntimeError(f"Couldn't compute analytics metrics: {exc}") from exc
 
-    narrative = generate_business_narrative(metrics)
+    try:
+        narrative = generate_business_narrative(metrics)
+    except Exception as exc:
+        narrative = f"Mizani Assistant: Business summary is temporarily unavailable due to Gemma API rate limits: {exc}"
+
     return {
         "metrics": metrics,
         "narrative": narrative,

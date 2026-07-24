@@ -199,7 +199,7 @@ export default function PulseScreen() {
           <View style={styles.heroTopRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={[styles.heroBadge, { backgroundColor: '#F59E0B' }]}>
-                <Ionicons name="scale-outline" size={18} color="#FFFDF8" />
+                <Ionicons name="logo-electron" size={18} color="#FFFDF8" />
               </View>
               <View>
                 <Text style={styles.heroTitle}>Mizani</Text>
