@@ -92,6 +92,7 @@ export default function MoneyScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
+  const [statementPin, setStatementPin] = useState('');
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -158,7 +159,7 @@ export default function MoneyScreen() {
     setError(null);
     setMessage(null);
     try {
-      const result = await api.uploadDocument(uri, sourceType, name);
+      const result = await api.uploadDocument(uri, sourceType, name, statementPin);
       if (result.inserted) {
         setMessage(
           `Extracted ${result.transaction?.counterparty_name || 'entry'} · ${result.transaction?.amount ?? '?'} KES (confidence ${(result.confidence ?? 0).toFixed(2)})`,
@@ -197,7 +198,27 @@ export default function MoneyScreen() {
       copyToCacheDirectory: true,
     });
     if (!doc.canceled && doc.assets[0]) {
-      await uploadFromUri(doc.assets[0].uri, doc.assets[0].name, 'bank_statement');
+      const asset = doc.assets[0];
+      // Ask the user which document type this is so it's tagged correctly
+      Alert.alert(
+        'Document Type',
+        'What kind of document is this?',
+        [
+          {
+            text: 'Invoice',
+            onPress: () => uploadFromUri(asset.uri, asset.name, 'invoice'),
+          },
+          {
+            text: 'M-PESA / Bank Statement',
+            onPress: () => uploadFromUri(asset.uri, asset.name, 'bank_statement'),
+          },
+          {
+            text: 'Delivery Note',
+            onPress: () => uploadFromUri(asset.uri, asset.name, 'delivery_note'),
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     }
   };
 
@@ -263,6 +284,20 @@ export default function MoneyScreen() {
               icon={<Ionicons name="sync-outline" size={16} color={c.textOnPrimary} />}
             />
           )}
+        </Card>
+
+        {/* ── M-PESA PDF Decryption PIN Input ──────────────── */}
+        <Card style={{ marginVertical: 8, padding: 12 }}>
+          <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: c.text, marginBottom: 6 }}>
+            M-PESA Statement PDF PIN (if encrypted)
+          </Text>
+          <FieldInput
+            label="Statement Password / PIN"
+            value={statementPin}
+            onChangeText={setStatementPin}
+            secureTextEntry
+            placeholder="Enter National ID or statement password"
+          />
         </Card>
 
         {/* ── Document upload grid ─────────────────────────── */}
