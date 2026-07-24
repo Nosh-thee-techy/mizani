@@ -4,9 +4,9 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { memo, useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View, Pressable } from 'react-native';
 
 import {
   Badge,
@@ -77,6 +77,24 @@ const TxCard = memo(function TxCard({ item }: { item: Tx }) {
               {item.notes}
             </Text>
           ) : null}
+
+          {/* Action triggers for unresolved ledgers */}
+          {item.status === 'unreconciled' && (
+            <View style={styles.txActions}>
+              <Pressable
+                onPress={() => router.push(`/(tabs)/inbox?tab=mismatches&filter=${encodeURIComponent(item.counterparty_name)}`)}
+                style={[styles.actionBtn, { borderColor: c.tint }]}>
+                <Ionicons name="git-compare-outline" size={13} color={c.tint} style={{ marginRight: 4 }} />
+                <Text style={[styles.actionBtnText, { color: c.tint }]}>Match Payment</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push(`/(tabs)/inbox?tab=drafts&filter=${encodeURIComponent(item.counterparty_name)}`)}
+                style={[styles.actionBtn, { borderColor: c.warning }]}>
+                <Ionicons name="mail-outline" size={13} color={c.warning} style={{ marginRight: 4 }} />
+                <Text style={[styles.actionBtnText, { color: c.warning }]}>Send Reminder</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </View>
     </Card>
@@ -257,5 +275,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  txActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
   },
 });
