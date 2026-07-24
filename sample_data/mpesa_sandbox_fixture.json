@@ -1,0 +1,48 @@
+{
+  "source": "mpesa_sandbox_fixture",
+  "description": "Demo M-PESA statement rows for Connect → Sync (not live Daraja).",
+  "transactions": [
+    {
+      "counterparty_name": "John's Duka",
+      "amount": 3500,
+      "transaction_date": "2026-07-18",
+      "direction": "receivable",
+      "notes": "M-PESA received from Johns Duka — till payment"
+    },
+    {
+      "counterparty_name": "John's Duka",
+      "amount": 5000,
+      "transaction_date": "2026-07-19",
+      "direction": "receivable",
+      "notes": "M-PESA received — partial invoice cover"
+    },
+    {
+      "counterparty_name": "Wanjiku Traders Ltd",
+      "amount": 12500,
+      "transaction_date": "2026-07-17",
+      "direction": "payable",
+      "notes": "M-PESA paid to supplier Wanjiku Traders"
+    },
+    {
+      "counterparty_name": "Kamau Hardware",
+      "amount": 7800,
+      "transaction_date": "2026-07-21",
+      "direction": "receivable",
+      "notes": "M-PESA received from Kamau Hardware"
+    },
+    {
+      "counterparty_name": "Njeri Mini Mart",
+      "amount": 4200,
+      "transaction_date": "2026-07-22",
+      "direction": "receivable",
+      "notes": "M-PESA received — new retailer"
+    },
+    {
+      "counterparty_name": "Bidco Distributor",
+      "amount": 22000,
+      "transaction_date": "2026-07-16",
+      "direction": "payable",
+      "notes": "M-PESA stock purchase payment"
+    }
+  ]
+}
