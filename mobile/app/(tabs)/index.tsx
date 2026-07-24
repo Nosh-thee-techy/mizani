@@ -18,8 +18,9 @@ import {
   StyleSheet,
   Text,
   View,
+  Pressable,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 
 import {
   Badge,
@@ -93,11 +94,13 @@ function FlagChip({
   count,
   label,
   variant,
+  onPress,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   count: number;
   label: string;
   variant: 'danger' | 'warning' | 'info' | 'neutral';
+  onPress: () => void;
 }) {
   const c = useTheme();
   const colorMap = {
@@ -115,11 +118,20 @@ function FlagChip({
   const col = colorMap[variant];
   const bg  = bgMap[variant];
   return (
-    <View style={[styles.flagChip, { backgroundColor: bg, borderColor: col + '44' }]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.flagChip,
+        {
+          backgroundColor: bg,
+          borderColor: col + '44',
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}>
       <Ionicons name={icon} size={14} color={col} />
       <Text style={[styles.flagCount, { color: col }]}>{count}</Text>
       <Text style={[styles.flagLabel, { color: col }]}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -183,28 +195,91 @@ export default function PulseScreen() {
         <LinearGradient
           colors={[c.gradientStart, c.gradientEnd]}
           style={styles.hero}>
-          {/* Branding row */}
+          {/* Branding logo row */}
           <View style={styles.heroTopRow}>
-            <View>
-              <Text style={styles.heroTitle}>Mizani</Text>
-              <Text style={styles.heroSubtitle}>
-                Business Pulse · last {m?.period_days ?? 7} days
-              </Text>
-            </View>
-            <View style={[styles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-              <Ionicons name="pulse" size={18} color="#FFFDF8" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.heroBadge, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="scale-outline" size={18} color="#FFFDF8" />
+              </View>
+              <View>
+                <Text style={styles.heroTitle}>Mizani</Text>
+                <Text style={styles.heroSubtitle}>
+                  Business Pulse · last {m?.period_days ?? 7} days
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Gemma narrative card */}
+          {/* Graphical Summary Chart Card */}
           <View style={[styles.narrativeCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.2)' }]}>
             <View style={styles.narrativeHeader}>
-              <Ionicons name="sparkles" size={14} color="#F59E0B" />
-              <Text style={styles.narrativeLabel}>Gemma says</Text>
+              <Ionicons name="bar-chart-outline" size={14} color="#FFFDF8" />
+              <Text style={styles.narrativeLabel}>Weekly Cash Flow & Sales Share</Text>
             </View>
-            <Text style={styles.narrativeText}>
-              {data?.narrative || 'Sync M-PESA or upload a statement to see your business narrative.'}
-            </Text>
+            
+            {/* 1. Cash In vs Cash Out Comparison Tracker */}
+            <View style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={{ color: '#FFFDF8', fontSize: 11, fontFamily: 'Inter_500Medium' }}>Cash Inflow</Text>
+                <Text style={{ color: '#FFFDF8', fontSize: 11, fontFamily: 'Inter_500Medium' }}>Cash Outflow</Text>
+              </View>
+              {/* Dual bar chart tracker */}
+              <View style={{ height: 12, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.15)', flexDirection: 'row', overflow: 'hidden' }}>
+                <View
+                  style={{
+                    flex: Math.max(1, m?.period_money_in ?? 0),
+                    backgroundColor: c.success,
+                  }}
+                />
+                <View
+                  style={{
+                    flex: Math.max(1, m?.period_money_out ?? 0),
+                    backgroundColor: c.danger,
+                  }}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={{ color: c.success, fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
+                  {kes(m?.period_money_in ?? 0)}
+                </Text>
+                <Text style={{ color: c.danger, fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
+                  {kes(m?.period_money_out ?? 0)}
+                </Text>
+              </View>
+            </View>
+
+            {/* 2. Top Buyers Share representation */}
+            {buyers.length > 0 && (
+              <View style={{ marginTop: 14, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: 10 }}>
+                <Text style={{ color: '#FFFDF8', fontSize: 11, fontFamily: 'Inter_600SemiBold', marginBottom: 6 }}>
+                  Top Buyers Distribution
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 6, height: 24 }}>
+                  {buyers.map((b, idx) => {
+                    const pctShare = maxBuyer > 0 ? (b.total_amount / maxBuyer) * 100 : 0;
+                    const colors = [c.tint, c.accent, '#10B981', '#3B82F6'];
+                    const col = colors[idx % colors.length];
+                    return (
+                      <View
+                        key={b.name}
+                        style={{
+                          flex: Math.max(10, pctShare),
+                          backgroundColor: col,
+                          borderRadius: 4,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          paddingHorizontal: 4,
+                        }}
+                      >
+                        <Text style={{ color: '#FFFDF8', fontSize: 9, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
+                          {initials(b.name)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
         </LinearGradient>
 
@@ -254,6 +329,7 @@ export default function PulseScreen() {
                     count={m!.open_mismatches}
                     label="mismatches"
                     variant="danger"
+                    onPress={() => router.push('/(tabs)/inbox?tab=mismatches')}
                   />
                 )}
                 {(m?.pending_drafts ?? 0) > 0 && (
@@ -262,6 +338,7 @@ export default function PulseScreen() {
                     count={m!.pending_drafts}
                     label="drafts"
                     variant="warning"
+                    onPress={() => router.push('/(tabs)/inbox?tab=drafts')}
                   />
                 )}
                 {(m?.delivery_discrepancies ?? 0) > 0 && (
@@ -270,6 +347,7 @@ export default function PulseScreen() {
                     count={m!.delivery_discrepancies}
                     label="stock gaps"
                     variant="danger"
+                    onPress={() => router.push('/(tabs)/goods')}
                   />
                 )}
                 {(m?.pending_deliveries ?? 0) > 0 && (
@@ -278,6 +356,7 @@ export default function PulseScreen() {
                     count={m!.pending_deliveries}
                     label="in transit"
                     variant="info"
+                    onPress={() => router.push('/(tabs)/goods')}
                   />
                 )}
               </ScrollView>

@@ -10,8 +10,8 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState, useEffect } from 'react';
 import {
   Alert,
   Platform,
@@ -186,11 +186,18 @@ function DraftCard({
 // ── Main screen ───────────────────────────────────────────────
 export default function InboxScreen() {
   const c = useTheme();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const [data, setData] = useState<InboxResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'mismatches' | 'drafts'>('mismatches');
+
+  useEffect(() => {
+    if (params.tab === 'drafts' || params.tab === 'mismatches') {
+      setActiveTab(params.tab);
+    }
+  }, [params.tab]);
 
   const load = useCallback(async () => {
     setError(null);

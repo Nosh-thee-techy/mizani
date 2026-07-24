@@ -36,6 +36,7 @@ export default function FloatingChatbot() {
     'Are there any delivery gaps today?',
   ]);
   const [loading, setLoading] = useState(false);
+  const [expandedIndices, setExpandedIndices] = useState<Record<number, boolean>>({});
   const scrollRef = useRef<ScrollView>(null);
 
   const onSend = async (textToSend: string) => {
@@ -140,31 +141,59 @@ export default function FloatingChatbot() {
                 </View>
               )}
 
-              {history.map((msg, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.msgBubbleWrap,
-                    msg.role === 'user' ? styles.msgUser : styles.msgAssistant,
-                  ]}>
+              {history.map((msg, idx) => {
+                const isExpanded = !!expandedIndices[idx];
+                const isLong = msg.content.length > 120;
+                const displayText =
+                  !isExpanded && isLong && msg.role === 'assistant'
+                    ? `${msg.content.slice(0, 110)}...`
+                    : msg.content;
+                return (
                   <View
+                    key={idx}
                     style={[
-                      styles.msgBubble,
-                      {
-                        backgroundColor: msg.role === 'user' ? c.tint : c.surfaceElevated,
-                        borderColor: c.border,
-                      },
+                      styles.msgBubbleWrap,
+                      msg.role === 'user' ? styles.msgUser : styles.msgAssistant,
                     ]}>
-                    <Text
-                      style={[
-                        styles.msgText,
-                        { color: msg.role === 'user' ? '#FFF' : c.text },
+                    <Pressable
+                      onPress={() => {
+                        if (isLong) {
+                          setExpandedIndices((prev) => ({
+                            ...prev,
+                            [idx]: !prev[idx],
+                          }));
+                        }
+                      }}
+                      style={({ pressed }) => [
+                        styles.msgBubble,
+                        {
+                          backgroundColor: msg.role === 'user' ? c.tint : c.surfaceElevated,
+                          borderColor: c.border,
+                          opacity: isLong && pressed ? 0.85 : 1,
+                        },
                       ]}>
-                      {msg.content}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.msgText,
+                          { color: msg.role === 'user' ? '#FFF' : c.text },
+                        ]}>
+                        {displayText}
+                      </Text>
+                      {isLong && msg.role === 'assistant' && (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontFamily: 'Inter_600SemiBold',
+                            color: c.tint,
+                            marginTop: 6,
+                          }}>
+                          {isExpanded ? 'Collapse analysis' : 'Tap to expand full details'}
+                        </Text>
+                      )}
+                    </Pressable>
                   </View>
-                </View>
-              ))}
+                );
+              })}
 
               {loading && (
                 <View style={styles.msgAssistant}>
