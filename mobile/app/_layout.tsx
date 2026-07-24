@@ -12,7 +12,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-
+import { Platform, View, StyleSheet } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 
 export { ErrorBoundary } from 'expo-router';
@@ -49,20 +49,63 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
+  const content = (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="+not-found" />
+      <Stack.Screen
+        name="counterparty/[name]"
+        options={{
+          title: '',
+          headerBackTitle: 'People',
+          headerTransparent: true,
+        }}
+      />
+    </Stack>
+  );
+
+  if (Platform.OS === 'web') {
+    return (
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <View style={styles.webContainer}>
+          <View style={styles.webAppFrame}>
+            {content}
+          </View>
+        </View>
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-        <Stack.Screen
-          name="counterparty/[name]"
-          options={{
-            title: '',
-            headerBackTitle: 'People',
-            headerTransparent: true,
-          }}
-        />
-      </Stack>
+      {content}
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  webContainer: {
+    flex: 1,
+    backgroundColor: '#090D16', // Sleek dark slate canvas background
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  webAppFrame: {
+    width: '100%',
+    maxWidth: 420, // Clean iPhone screen width representation
+    height: '95%',
+    maxHeight: 880,
+    backgroundColor: '#FAF9F6',
+    borderRadius: 36,
+    overflow: 'hidden',
+    borderWidth: 10,
+    borderColor: '#1E293B', // Slate grey phone hardware bezel
+    // Dynamic drop shadow
+    shadowColor: '#000000',
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 16 },
+  },
+});
