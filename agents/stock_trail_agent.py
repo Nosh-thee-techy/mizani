@@ -16,6 +16,7 @@ from constants import (
     DeliveryMatchStatus,
     TABLE_DELIVERIES,
     TABLE_TRANSACTIONS,
+    TABLE_DRAFTS,
 )
 from db.database import get_connection
 
@@ -289,6 +290,22 @@ def create_delivery_from_dispatch(
                 ),
             )
             delivery_id = int(cur.lastrowid)
+            
+            # Create a draft notification message in the drafts table
+            # Once a dispatch is done, a message is given in the inbox (drafts).
+            draft_text = (
+                f"Habari {tx['counterparty_name']}. Delivery #{delivery_id} of "
+                f"{extraction['estimated_quantity']} units has been dispatched. "
+                f"Track delivery: http://localhost:8000/tracking/{delivery_id}"
+            )
+            conn.execute(
+                f"""
+                INSERT INTO {TABLE_DRAFTS} (transaction_id, draft_type, message_text, approved)
+                VALUES (?, ?, ?, 0)
+                """,
+                (transaction_id, "reminder", draft_text),
+            )
+            
             conn.commit()
             row = conn.execute(
                 f"SELECT * FROM {TABLE_DELIVERIES} WHERE id = ?",

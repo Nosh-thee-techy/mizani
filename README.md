@@ -6,19 +6,34 @@ Mizani helps Kenyan wholesalers keep books *sawa* — photo a document, reconcil
 
 | Client | Who uses it |
 |---|---|
-| **Expo app** (`mobile/`) | Wholesaler — intake, analytics, stock trail, draft approvals |
+| **Expo app** (`mobile/`) | Wholesaler — intake, analytics, live 3D stock trail tracking, draft approvals |
 | **USSD / SMS** | Retailers & drivers — balance check, delivery confirm, reminders |
 
-## What it does
+---
+
+## Redesigned Visual Experience
+
+The mobile client is built on a **Modern Dark** design system, prioritizing clean visual hierarchy, readability, and modern aesthetics tailored for fast-paced wholesale operations:
+- **Design Dial Density (7/10):** Information-dense dashboards with micro-interactions, spring mechanics, and responsive feedback.
+- **Color tokens:** Brand forest green and gold trust accents layered over high-contrast cinema surfaces.
+- **Typography:** Google Fonts Inter throughout.
+- **Icons:** Fully vector-based icons via `@expo/vector-icons` (Ionicons) — no structural emojis.
+
+---
+
+## Core Capabilities
 
 | Capability | What happens |
 |---|---|
-| **Ingest** | Photo invoices, delivery notes, bank statements → Gemma extracts structured transactions |
-| **Reconcile** | Match payables ↔ receivables / statements; flag mismatches |
-| **Act** | Draft payment & reminder SMS; approve to send via Africa's Talking |
-| **Stock trail** | Three-way match: invoice ↔ dispatch ↔ retailer USSD receipt |
-| **M-PESA** | Sandbox “Connect → Sync” pulls fixture txs into the same ledger |
-| **Pulse** | Digests + analytics narrative for the Expo app |
+| **Ingest** | Photo invoices, statements → Gemma extracts structured transactions. |
+| **Reconcile** | Match payables ↔ receivables / statements; flag mismatches. |
+| **Action Inbox** | Approve SMS drafts (generated automatically on dispatch or reconciliation) to send via Africa's Talking. |
+| **Stock Trail** | Three-way match: invoice ↔ dispatch ↔ retailer USSD receipt. |
+| **3D Live Tracking** | Interactive isometric 3D route map rendering for dispatched orders in transit. |
+| **M-PESA** | Sandbox “Connect → Sync” pulls fixture txs into the same ledger. |
+| **Pulse** | LLM-generated business update narratives + analytics dashboard widgets. |
+
+---
 
 ## Architecture
 
@@ -52,7 +67,9 @@ flowchart LR
   R --> MP
 ```
 
-## Core money flow
+---
+
+## Core Money Flow
 
 ```mermaid
 sequenceDiagram
@@ -64,7 +81,7 @@ sequenceDiagram
 
   W->>API: POST /upload-document
   API->>Gemma: Extract fields from photo
-  Gemma-->>API: Structured JSON
+  Gemma-->>API: Structured JSON (robust parsed lists/objects)
   API->>DB: Save document + transactions
   W->>API: POST /reconcile
   API->>DB: Match / flag mismatches
@@ -74,57 +91,60 @@ sequenceDiagram
   API->>AT: Send SMS
 ```
 
-## Stock trail
+---
+
+## Stock Trail & 3D Isometric Route Tracking
+
+Once a warehouse dispatch is photographed and uploaded, a **live 3D isometric map** renders in the Expo app under **Goods**, tracing the order's route to the destination shop. Simultaneously, a pending confirmation message is automatically drafted in the **Inbox**.
 
 ```mermaid
 flowchart TD
   I[Invoice / sale] --> D[POST /dispatch]
-  D --> P[Pending delivery]
-  P --> U[Retailer confirms on USSD]
+  D --> DM[3D Isometric Map rendering in transit]
+  D --> DD[Pending SMS confirmation created in drafts]
+  DM --> U[Retailer confirms on USSD]
+  DD --> U
   U --> M{Qty matches?}
   M -->|Yes| OK[Matched]
   M -->|No| DIS[Discrepancy]
 ```
 
-## Quick start
+---
+
+## Quick Start
 
 ### Backend
 
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate
+# Activate: source .venv/bin/activate (Linux/Mac) or .venv\Scripts\activate (Windows)
+source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 # Fill GEMMA_API_KEY and AT_API_KEY (AT_USERNAME=sandbox)
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Seed demo ledger + M-PESA fixture + contacts (recommended before the mobile demo):
+Seed ledger fixtures:
 
 ```bash
 python sample_data/seed_demo_for_app.py
 ```
 
-API docs: [http://localhost:8000/docs](http://localhost:8000/docs) · Health: `GET /health`
-
 ### Mobile (Expo)
+
+Ensure you run Metro on a clean port and compile for Web or Native:
 
 ```bash
 cd mobile
 npm install
 cp .env.example .env
 # Set EXPO_PUBLIC_API_URL to http://localhost:8000 (simulator)
-# or your ngrok host (physical device) — same host as USSD, no /ussd path
+# or your ngrok host (physical device)
 npx expo start
 ```
 
-Tabs: **Pulse** · **Money** · **People** · **Goods** · **Inbox** — see [`mobile/README.md`](mobile/README.md).
-
-### Tests
-
-```bash
-pytest
-```
+Press **`w`** in the terminal window to run in your local web browser.
 
 ### USSD (Africa's Talking sandbox)
 
@@ -132,20 +152,11 @@ pytest
 2. Create a USSD channel; callback URL = `https://<ngrok-host>/ussd`
 3. Dial `*<service>*<channel>#` in the AT simulator (e.g. `*384*51567#`)
 
-Menu: check what I owe · confirm delivery received · exit.
+Menu options: check balance, confirm delivery quantity, exit.
 
-## Environment
+---
 
-| Variable | Where | Purpose |
-|---|---|---|
-| `GEMMA_API_KEY` | root `.env` | Gemma/Gemini (OpenAI-compatible) |
-| `GEMMA_BASE_URL` / `GEMMA_MODEL` | root `.env` | Endpoint + model id |
-| `AT_USERNAME` / `AT_API_KEY` | root `.env` | Africa's Talking sandbox (`sandbox` + key) |
-| `DATABASE_PATH` | root `.env` | SQLite file (default `mizani.db`) |
-| `UPLOAD_DIR` | root `.env` | Uploaded photos |
-| `EXPO_PUBLIC_API_URL` | `mobile/.env` | FastAPI base URL for the app |
-
-## API map
+## API Map
 
 ```mermaid
 mindmap
@@ -173,7 +184,9 @@ mindmap
       GET /analytics/goods
 ```
 
-## Project layout
+---
+
+## Project Layout
 
 ```
 agents/          # Ingestion, reconcile, payables, stock, digest, M-PESA, analytics
@@ -185,15 +198,13 @@ sample_data/     # Fixtures + seed scripts
 tests/           # pytest
 ```
 
-## Stack
+---
 
-**FastAPI · SQLite · Gemma/Gemini · Africa's Talking · M-PESA sandbox · Expo**
+## Demo Script
 
-## Demo script
-
-1. Seed: `python sample_data/seed_demo_for_app.py`
-2. Open mobile **Pulse** — Gemma narrative + money in/out
-3. **Money** — Connect M-PESA → Sync (or photograph a statement)
-4. **Inbox** — reconcile mismatches; approve a reminder draft (SMS in AT sandbox)
-5. **Goods** — dispatch photo; retailer confirms on USSD; three-way match updates
-6. Dial USSD — “Check what I owe” with a seeded contact phone
+1. **Seed:** Run `python sample_data/seed_demo_for_app.py`.
+2. **Pulse:** Open the mobile screen to view the LLM narrative of the week.
+3. **Money:** Sync local sandbox transactions or upload a statement.
+4. **Inbox:** Run reconciliation on mismatches and approve automatic SMS notification drafts.
+5. **Goods:** Photograph a dispatch. The item moves into "In Transit", displaying the **3D Order Route map**.
+6. **USSD:** Confirm delivery receipt in USSD, updating the match status to complete the loop.

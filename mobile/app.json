@@ -40,7 +40,8 @@
           "photosPermission": "Allow Ledger Chain to attach invoice and statement photos.",
           "cameraPermission": "Allow Ledger Chain to photograph documents and dispatch stock."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
