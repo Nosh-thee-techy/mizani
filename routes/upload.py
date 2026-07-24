@@ -81,11 +81,37 @@ def list_documents(limit: int = 20) -> dict:
 
 def process_single_file(file_path: Path, source_type: str) -> dict:
     """Helper to run extraction and save document + transaction records in database."""
+    extracted = None
+    extraction_err = None
     try:
         extracted = extract_document(str(file_path), source_type)
     except Exception as exc:
         logger.error(f"Failed to process file {file_path.name}: {exc}")
-        return {"file_name": file_path.name, "success": False, "error": str(exc)}
+        extraction_err = str(exc)
+
+    if extraction_err:
+        try:
+            with get_connection() as conn:
+                cur = conn.execute(
+                    f"""
+                    INSERT INTO {TABLE_DOCUMENTS} (source_type, image_path, raw_extracted_json)
+                    VALUES (?, ?, ?)
+                    """,
+                    (source_type, str(file_path), json.dumps({"error": extraction_err})),
+                )
+                document_id = int(cur.lastrowid)
+                conn.commit()
+            return {
+                "file_name": file_path.name,
+                "document_id": document_id,
+                "success": True,
+                "inserted": False,
+                "status": "processing_failed",
+                "message": "Document uploaded successfully. Automatic ledger parsing is queued because the AI agent is busy.",
+                "error": extraction_err
+            }
+        except sqlite3.Error as exc:
+            return {"file_name": file_path.name, "success": False, "error": f"DB Write Failed: {exc}"}
 
     confidence = float(extracted.get("confidence", 0.0))
     raw_json = json.dumps(extracted.get("raw_response", {}), default=str)
