@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.database import init_db
-from routes import analytics, digest, drafts, mpesa, reconcile, stock_trail, upload, ussd
+from routes import analytics, digest, drafts, mpesa, reconcile, stock_trail, upload, ussd, chat
 
 
 @asynccontextmanager
@@ -54,6 +54,7 @@ app.include_router(stock_trail.router)
 app.include_router(digest.router)
 app.include_router(mpesa.router)
 app.include_router(analytics.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")

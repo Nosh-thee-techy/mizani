@@ -1,6 +1,5 @@
-/**
- * Ledger Chain API client for the wholesaler Expo app.
- */
+import { Platform } from 'react-native';
+
 
 const BASE =
   (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -155,11 +154,18 @@ export const api = {
   uploadDocument: async (uri: string, sourceType: string, fileName = 'upload.jpg') => {
     const form = new FormData();
     form.append('source_type', sourceType);
-    form.append('file', {
-      uri,
-      name: fileName,
-      type: fileName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
-    } as unknown as Blob);
+    
+    if (Platform.OS === 'web') {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      form.append('file', blob, fileName);
+    } else {
+      form.append('file', {
+        uri,
+        name: fileName,
+        type: fileName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+      } as unknown as Blob);
+    }
 
     const response = await fetch(`${BASE}/upload-document`, {
       method: 'POST',
@@ -187,15 +193,22 @@ export const api = {
     if (invoiceQuantity != null) {
       form.append('invoice_quantity', String(invoiceQuantity));
     }
-    form.append('file', {
-      uri,
-      name: fileName,
-      type: 'image/jpeg',
-    } as unknown as Blob);
+    
+    if (Platform.OS === 'web') {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      form.append('file', blob, fileName);
+    } else {
+      form.append('file', {
+        uri,
+        name: fileName,
+        type: 'image/jpeg',
+      } as unknown as Blob);
+    }
 
     const response = await fetch(`${BASE}/dispatch`, {
       method: 'POST',
-      headers: { 'ngrok-skip-browser-warning': '1' },
+      headers: { 'ngrok-skip-warning': '1' },
       body: form,
     });
     if (!response.ok) {
@@ -204,6 +217,25 @@ export const api = {
     }
     return response.json();
   },
+
+  /** Ask business assistant chatbot */
+  chat: (message: string, history: { role: string; content: string }[] = []) =>
+    request<{ reply: string; suggestions: string[] }>('/chat/query', {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    }),
+
+  /** Get uploaded document history */
+  documents: () =>
+    request<{
+      documents: {
+        id: number;
+        source_type: string;
+        image_path: string;
+        uploaded_at: string;
+        extracted: Record<string, any>;
+      }[];
+    }>('/documents'),
 };
 
 /**

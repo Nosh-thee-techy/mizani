@@ -1,15 +1,19 @@
 /**
- * Root layout for the Ledger Chain wholesaler Expo app.
+ * Root layout — loads Inter font family and initialises the Mizani app.
  */
 
-import { useFonts } from 'expo-font';
+import { useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -21,20 +25,21 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    // Keep SpaceMono for any legacy fallback
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
+    if (loaded || error) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, error]);
 
-  if (!loaded) {
+  if (!loaded && !error) {
     return null;
   }
 
@@ -42,27 +47,21 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const c = Colors[colorScheme];
-
-  const theme = {
-    ...(colorScheme === 'dark' ? DarkTheme : DefaultTheme),
-    colors: {
-      ...(colorScheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
-      primary: c.tint,
-      background: c.background,
-      card: c.surface,
-      text: c.text,
-      border: c.border,
-    },
-  };
+  const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={theme}>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="counterparty/[name]" options={{ title: 'Counterparty' }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'About' }} />
+        <Stack.Screen name="+not-found" />
+        <Stack.Screen
+          name="counterparty/[name]"
+          options={{
+            title: '',
+            headerBackTitle: 'People',
+            headerTransparent: true,
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

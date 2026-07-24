@@ -196,6 +196,13 @@ def chat_vision_json(
             f"Could not parse document JSON from model: {exc}. Raw: {cleaned[:300]}"
         ) from exc
 
+    if isinstance(parsed, list):
+        dicts = [item for item in parsed if isinstance(item, dict)]
+        if dicts:
+            parsed = dicts[0]
+        else:
+            raise GemmaClientError("Model JSON was a list but contained no objects")
+
     if not isinstance(parsed, dict):
         raise GemmaClientError("Model JSON was not an object")
     return {"parsed": parsed, "raw_response": raw}
