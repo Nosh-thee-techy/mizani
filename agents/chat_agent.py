@@ -120,10 +120,60 @@ def ask_business_assistant(message: str, history: list[dict[str, str]] = None) -
         raw = chat(messages, temperature=0.3)
         reply = raw["choices"][0]["message"]["content"]
     except Exception as e:
-        return {
-            "reply": f"Pole sana, I encountered an error: {e}",
-            "suggestions": ["What are my top customer balances?", "Show summary of cash flow"]
-        }
+        # Fallback to local SQL data interpreter if Gemma is rate-limited or offline (e.g. HTTP 429)
+        try:
+            db_context = json.loads(context)
+            msg_lower = message.lower()
+            
+            if "owe" in msg_lower or "supplier" in msg_lower or "deni" in msg_lower:
+                we_owe = db_context["financials"]["wholesaler_owes_payables"]
+                reply = (
+                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Hapa kuna breakdown ya madeni yetu: You currently owe suppliers **KES {we_owe:,.0f}**. "
+                    "You can manage draft payment alerts under the Inbox tab."
+                )
+                suggestions = ["What are my top customer balances?", "Show summary of cash flow"]
+            elif "balance" in msg_lower or "customer" in msg_lower or "buyer" in msg_lower or "owes" in msg_lower:
+                owed_to_us = db_context["financials"]["owed_to_wholesaler_receivables"]
+                custs = "\n".join([
+                    f"- **{c['name']}**: KES {c['total_bought']:,.0f} ({c['transactions']} transactions)"
+                    for c in db_context["top_customers"]
+                ])
+                reply = (
+                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Wateja wanaotudai outstanding balances total **KES {owed_to_us:,.0f}**.\n\n"
+                    f"Top Buyers outstanding:\n{custs}\n\n"
+                    "You can follow up with reminders under the Action Inbox."
+                )
+                suggestions = ["How much do I owe suppliers?", "Are there any delivery gaps today?"]
+            elif "delivery" in msg_lower or "gap" in msg_lower or "discrepancy" in msg_lower or "transit" in msg_lower:
+                gaps = db_context["delivery_discrepancies"]
+                pending = db_context["pending_deliveries"]
+                reply = (
+                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Status of deliveries today:\n"
+                    f"- Pending in transit: **{pending}** deliveries\n"
+                    f"- Discrepancy flags: **{gaps}** items flagged\n\n"
+                    "Check the Goods and Inbox tabs to resolve discrepancies."
+                )
+                suggestions = ["What are my top customer balances?", "How much do I owe suppliers?"]
+            else:
+                owed_to_us = db_context["financials"]["owed_to_wholesaler_receivables"]
+                we_owe = db_context["financials"]["wholesaler_owes_payables"]
+                reply = (
+                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Habari! I am operating in local database mode. Here is your current ledger summary:\n"
+                    f"- Owed to you (Receivables): **KES {owed_to_us:,.0f}**\n"
+                    f"- You owe (Payables): **KES {we_owe:,.0f}**\n"
+                    f"- Delivery discrepancies: **{db_context['delivery_discrepancies']}** open flags\n\n"
+                    "Ask me about your supplier balances or customer balances."
+                )
+                suggestions = ["What are my top customer balances?", "How much do I owe suppliers?"]
+        except Exception as fallback_err:
+            return {
+                "reply": f"Mizani Assistant: Gemma API rate limit reached (HTTP 429) and local helper failed: {fallback_err}. Original error: {e}",
+                "suggestions": ["What are my top customer balances?", "How much do I owe suppliers?"]
+            }
 
     # Extract suggested questions if present
     suggestions = ["What are my top customer balances?", "How much do we owe suppliers?"]
