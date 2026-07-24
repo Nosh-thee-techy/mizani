@@ -79,6 +79,24 @@ business narrative.
 retailer used a simple menu. Everything else happened automatically in one
 ledger.”
 
+## Hosting (production)
+
+Repo: https://github.com/Nosh-thee-techy/mizani
+
+### 1) API on Render (Docker)
+
+1. Open https://dashboard.render.com/select-repo?type=blueprint
+2. Connect `Nosh-thee-techy/mizani` and apply `render.yaml`
+3. Set secrets: `GEMMA_API_KEY`, `AT_API_KEY`
+4. Health check: `https://YOUR-SERVICE.onrender.com/health`
+
+### 2) Expo web on Vercel
+
+1. Import the same GitHub repo at https://vercel.com/new
+2. Framework: Other (uses root `vercel.json`)
+3. Env: `EXPO_PUBLIC_API_URL=https://YOUR-SERVICE.onrender.com`
+4. Deploy — build runs `cd mobile && npm install && npm run build`
+
 ## Contingencies
 
 - **Local Gemma is slow:** use the already-seeded Pulse narrative and continue
