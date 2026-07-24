@@ -22,7 +22,7 @@ from db.database import get_connection
 logger = logging.getLogger(__name__)
 
 DISPATCH_SYSTEM_PROMPT = """
-You are counting stock for Ledger Chain's Stock Trail.
+You are counting stock for Mizani's Stock Trail.
 The photo shows goods being loaded for delivery. Count distinct items or
 cartons visible in the image.
 

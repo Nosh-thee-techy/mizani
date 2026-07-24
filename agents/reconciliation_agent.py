@@ -184,7 +184,7 @@ def _ask_model_for_match(
         Dict with matched, matched_transaction_id, confidence, discrepancy_notes.
     """
     system = (
-        "You are the Ledger Chain reconciliation agent. "
+        "You are the Mizani reconciliation agent. "
         "Given a source transaction and candidate matches, decide if there is a match. "
         "Priority: (1) same counterparty fuzzy name, (2) amount within "
         f"{AMOUNT_TOLERANCE_PERCENT}%, (3) dates within {DATE_WINDOW_DAYS} days, "

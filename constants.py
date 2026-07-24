@@ -1,4 +1,4 @@
-"""Shared constants and enums for Ledger Chain — avoids magic strings in agents/routes."""
+"""Shared constants and enums for Mizani — avoids magic strings in agents/routes."""
 
 from enum import Enum
 

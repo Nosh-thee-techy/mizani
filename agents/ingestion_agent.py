@@ -8,7 +8,7 @@ from agents.gemma_client import GemmaClientError, chat_vision_json
 from constants import Direction, MIN_EXTRACTION_CONFIDENCE, SourceType
 
 EXTRACTION_SYSTEM_PROMPT = """
-You are the Ledger Chain document extractor for Kenyan wholesalers.
+You are the Mizani document extractor for Kenyan wholesalers.
 The image may be a handwritten ledger page, a printed invoice, a delivery note,
 or a phone screenshot of an M-Pesa / bank message.
 

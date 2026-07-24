@@ -29,7 +29,7 @@ router = APIRouter(tags=["ussd"])
 logger = logging.getLogger(__name__)
 
 MAIN_MENU_TEXT = (
-    "Ledger Chain\n"
+    "Mizani\n"
     "1. Check what I owe\n"
     "2. Confirm delivery received\n"
     "3. Exit"

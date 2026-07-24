@@ -1,1 +1,1 @@
-"""HTTP route package for Ledger Chain FastAPI endpoints."""
+"""HTTP route package for Mizani FastAPI endpoints."""

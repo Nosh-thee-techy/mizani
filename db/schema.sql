@@ -1,4 +1,4 @@
--- Ledger Chain schema (Steps 1–4). Column names are fixed for later USSD/Stock Trail work.
+-- Mizani schema (Steps 1–4). Column names are fixed for later USSD/Stock Trail work.
 
 -- One row per photographed document, regardless of type
 CREATE TABLE IF NOT EXISTS documents (

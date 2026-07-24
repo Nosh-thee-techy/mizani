@@ -1,4 +1,4 @@
-"""SQLite connection helpers and idempotent schema initialization for Ledger Chain."""
+"""SQLite connection helpers and idempotent schema initialization for Mizani."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def _database_path() -> Path:
     Returns:
         Absolute Path to the SQLite database file.
     """
-    raw = os.getenv("DATABASE_PATH", "ledger_chain.db")
+    raw = os.getenv("DATABASE_PATH", "mizani.db")
     path = Path(raw)
     if not path.is_absolute():
         path = PROJECT_ROOT / path

@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for Ledger Chain (API + React Native wholesaler client)."""
+"""FastAPI entrypoint for Mizani (API + React Native wholesaler client)."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="Ledger Chain",
+    title="Mizani",
     description=(
         "Hackathon prototype backend for Kenyan wholesalers — "
         "ingestion, reconciliation, drafts, USSD/SMS, stock trail, digests, "
@@ -64,4 +64,4 @@ def health() -> dict[str, str]:
     Returns:
         Simple status payload.
     """
-    return {"status": "ok", "service": "ledger_chain"}
+    return {"status": "ok", "service": "mizani"}
