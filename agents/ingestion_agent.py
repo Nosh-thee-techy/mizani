@@ -78,11 +78,129 @@ Rules:
 """.strip()
 
 
+def _local_extract_pdf_fields(text: str, source_type: str) -> dict[str, Any] | None:
+    """
+    Fast, offline regex-based extractor for well-structured Kenyan invoice /
+    bank-statement PDFs.  Returns None if it cannot find enough fields.
+
+    Handles patterns from:
+    - Mizani invoice PDFs: "TO: ...", "TOTAL AMOUNT: KES ...", "Invoice Date: ..."
+    - Safaricom M-PESA statements: "Received from / Payment to ...", "KES ...", date
+    """
+    import re
+    from datetime import date as _date
+
+    # ── Counterparty ──────────────────────────────────────────────────────────
+    counterparty = ""
+    for pattern in [
+        r"(?:^TO|Bill\s+To|Customer|Sold\s+To)[:\s]+(.+)",
+        r"Received\s+from\s+(.+)",
+        r"Payment\s+to\s+(.+)",
+    ]:
+        m = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            counterparty = m.group(1).strip().rstrip(",;")
+            # Remove trailing junk after a newline
+            counterparty = counterparty.splitlines()[0].strip()
+            break
+
+    # ── Amount ────────────────────────────────────────────────────────────────
+    amount = 0.0
+    # Prefer labelled totals first (most reliable)
+    for pattern in [
+        r"TOTAL\s+AMOUNT[:\s]+KES\s*([\d,]+\.?\d*)",
+        r"Total\s+Amount[:\s]+KES\s*([\d,]+\.?\d*)",
+        r"Amount[:\s]+KES\s*([\d,]+\.?\d*)",
+        r"KES\s*([\d,]+\.?\d*)",
+        r"Ksh\.?\s*([\d,]+\.?\d*)",
+    ]:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            try:
+                amount = float(m.group(1).replace(",", ""))
+                if amount > 0:
+                    break
+            except ValueError:
+                continue
+
+    # ── Date ──────────────────────────────────────────────────────────────────
+    date_str = ""
+    for pattern in [
+        r"(?:Invoice\s+Date|Date)[:\s]+(\d{4}-\d{2}-\d{2})",
+        r"(\d{4}-\d{2}-\d{2})",                   # ISO date anywhere
+        r"(\d{2}/\d{2}/\d{4})",                    # DD/MM/YYYY
+    ]:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            raw = m.group(1)
+            if "/" in raw:
+                parts = raw.split("/")
+                raw = f"{parts[2]}-{parts[1]}-{parts[0]}"
+            date_str = raw
+            break
+    if not date_str:
+        date_str = _date.today().isoformat()
+
+    # ── Direction ─────────────────────────────────────────────────────────────
+    # Invoices from wholesaler TO customer → receivable
+    # "Payment to ..." → payable
+    direction = "receivable"
+    if re.search(r"(?:Payment\s+to|PAYABLE|payable)", text, re.IGNORECASE):
+        direction = "payable"
+    # M-PESA statement may have multiple rows; use majority vote
+    receivable_hits = len(re.findall(r"RECEIVABLE|Received\s+from", text, re.IGNORECASE))
+    payable_hits = len(re.findall(r"PAYABLE|Payment\s+to", text, re.IGNORECASE))
+    if payable_hits > receivable_hits:
+        direction = "payable"
+    elif receivable_hits >= payable_hits and receivable_hits > 0:
+        direction = "receivable"
+
+    # ── Confidence scoring ────────────────────────────────────────────────────
+    score = 0.0
+    if counterparty:
+        score += 0.4
+    if amount > 0:
+        score += 0.4
+    if len(date_str) == 10:
+        score += 0.2
+
+    if score < 0.6:
+        return None  # Signal caller to fall back to API
+
+    return {
+        "counterparty_name": counterparty or "UNKNOWN",
+        "amount": amount,
+        "transaction_date": date_str,
+        "direction": direction,
+        "confidence": round(score, 2),
+        "notes": f"Locally extracted from PDF (no API call required)",
+        "raw_response": {
+            "parsed": {
+                "counterparty_name": counterparty,
+                "amount": amount,
+                "transaction_date": date_str,
+                "direction": direction,
+                "confidence": round(score, 2),
+                "document_kind": "printed_invoice" if source_type == "invoice" else "bank_statement",
+                "extractor": "local_regex",
+            },
+            "api": None,
+        },
+    }
+
+
 def extract_pdf_document(file_path: str, source_type: str) -> dict[str, Any]:
     """
-    Extract text from a PDF file using pypdf, then send to Gemma chat_json.
-    PDFs cannot be sent as images to the vision API — this is the correct path.
+    Extract structured fields from a PDF.
+
+    Strategy:
+    1. Read all page text with pypdf (always works, no API cost).
+    2. Try the fast local regex extractor — succeeds for standard
+       invoices and Safaricom M-PESA statements instantly.
+    3. Only if local extraction is insufficient, call Gemma chat_json
+       (with automatic 429 backoff-retry from gemma_client).
     """
+    # ── Step 1: read PDF text ────────────────────────────────────────────────
     try:
         from pypdf import PdfReader
         reader = PdfReader(file_path)
@@ -98,11 +216,16 @@ def extract_pdf_document(file_path: str, source_type: str) -> dict[str, Any]:
     if not full_text.strip():
         raise RuntimeError("PDF contains no extractable text (may be a scanned image PDF).")
 
+    # ── Step 2: try local regex extractor first (instant, no API quota used) ─
+    local_result = _local_extract_pdf_fields(full_text, source_type)
+    if local_result is not None:
+        return local_result
+
+    # ── Step 3: fallback to Gemma for complex / non-standard layouts ─────────
     user_text = (
         f"Extract ledger fields from this PDF {source_type.replace('_', ' ')}.\n\n"
-        f"PDF TEXT CONTENT:\n{full_text[:4000]}"  # cap to avoid token limits
+        f"PDF TEXT CONTENT:\n{full_text[:4000]}"
     )
-
     try:
         result = chat_json(PDF_EXTRACTION_SYSTEM_PROMPT, user_text)
     except GemmaClientError as exc:
@@ -129,7 +252,6 @@ def extract_pdf_document(file_path: str, source_type: str) -> dict[str, Any]:
         confidence = 0.5
     confidence = max(0.0, min(1.0, confidence))
 
-    # For well-structured text PDFs, boost confidence if key fields present
     if counterparty and amount > 0 and len(date_raw) == 10:
         confidence = max(confidence, 0.75)
 
