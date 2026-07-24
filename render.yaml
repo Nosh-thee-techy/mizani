@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: mizani-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GEMMA_API_KEY
+        sync: false
+      - key: GEMMA_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      - key: GEMMA_MODEL
+        value: gemma-4-26b-a4b-it
+      - key: GEMINI_LIVE_MODEL
+        value: gemini-3.1-flash-live-preview
+      - key: AT_USERNAME
+        value: sandbox
+      - key: AT_API_KEY
+        sync: false
+      - key: DATABASE_PATH
+        value: /app/data/mizani.db
+      - key: UPLOAD_DIR
+        value: /app/uploads

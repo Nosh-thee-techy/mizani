@@ -4,6 +4,9 @@ import { Platform } from 'react-native';
 const BASE =
   (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
+export const MIZIZI_VOICE_URL =
+  `${BASE.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')}/voice/live`;
+
 /** Optional ngrok browser warning bypass header for free tunnels. */
 const DEFAULT_HEADERS: Record<string, string> = {
   'Content-Type': 'application/json',
@@ -174,7 +177,14 @@ export const api = {
     });
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || response.statusText);
+      let detail = text || response.statusText;
+      try {
+        const parsed = JSON.parse(text) as { detail?: unknown };
+        if (typeof parsed.detail === 'string') detail = parsed.detail;
+      } catch {
+        /* keep raw text */
+      }
+      throw new Error(detail);
     }
     return response.json();
   },
@@ -236,6 +246,103 @@ export const api = {
         extracted: Record<string, any>;
       }[];
     }>('/documents'),
+
+  /** Mizizi OS WhatsApp simulation */
+  miziziOsChat: (message: string) =>
+    request<{
+      reply: string;
+      intent: string;
+      card: string;
+      data: Record<string, any>;
+      suggestions: string[];
+      channel: string;
+    }>('/mizizi-os/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
+
+  cashCrisis: () => request<CashCrisisResponse>('/mizizi-os/cash-crisis'),
+
+  trustScores: (limit = 10) =>
+    request<TrustScoresResponse>(`/mizizi-os/trust-scores?limit=${limit}`),
+
+  creditCheck: (name: string, amount = 0) =>
+    request<CreditCheckResponse>(
+      `/mizizi-os/credit-check?name=${encodeURIComponent(name)}&amount=${amount}`,
+    ),
+
+  financingPack: () => request<FinancingPackResponse>('/mizizi-os/financing-pack'),
+};
+
+export type CashCrisisResponse = {
+  currency: string;
+  severity: 'critical' | 'warning' | 'watch' | 'calm' | string;
+  headline: string;
+  runway_hint: string;
+  open_receivables: number;
+  overdue_14_plus: number;
+  overdue_30_plus: number;
+  open_payables: number;
+  net_receivable_pressure: number;
+  aging_buckets: Record<string, number>;
+  top_debtors: {
+    name: string;
+    open_amount: number;
+    oldest_days: number;
+    invoice_count: number;
+  }[];
+  recommended_actions: { type: string; target: string; detail: string }[];
+  as_of: string;
+};
+
+export type TrustScoresResponse = {
+  currency: string;
+  credit_hold_days: number;
+  buyers: {
+    name: string;
+    trust_score: number;
+    band: string;
+    open_amount: number;
+    oldest_days_overdue: number;
+    match_rate: number;
+    mismatches: number;
+    delivery_gaps: number;
+    tx_count: number;
+    credit_hold: boolean;
+  }[];
+  as_of: string;
+};
+
+export type CreditCheckResponse = {
+  currency: string;
+  buyer: string;
+  allowed: boolean;
+  soft_block: boolean;
+  reason: string;
+  trust_score: number | null;
+  band?: string;
+  open_amount?: number;
+  oldest_days_overdue?: number;
+  proposed_amount: number;
+  rule?: string;
+};
+
+export type FinancingPackResponse = {
+  currency: string;
+  title: string;
+  readiness_score: number;
+  summary: {
+    documented_invoices: number;
+    matched_receivables: number;
+    open_receivables: number;
+    eligible_collateral_estimate: number;
+    overdue_30_plus: number;
+    high_risk_buyers: number;
+  };
+  top_debtors: { name: string; open_amount: number; oldest_days: number }[];
+  trusted_buyers: { name: string; trust_score: number; band: string }[];
+  lender_notes: string[];
+  as_of: string;
 };
 
 /**

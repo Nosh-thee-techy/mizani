@@ -8,7 +8,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.database import init_db
-from routes import analytics, digest, drafts, mpesa, reconcile, stock_trail, upload, ussd, chat
+from routes import (
+    analytics,
+    chat,
+    digest,
+    drafts,
+    mizizi_os,
+    mpesa,
+    reconcile,
+    stock_trail,
+    upload,
+    ussd,
+    voice,
+)
 
 
 @asynccontextmanager
@@ -31,7 +43,7 @@ app = FastAPI(
     description=(
         "Hackathon prototype backend for Kenyan wholesalers — "
         "ingestion, reconciliation, drafts, USSD/SMS, stock trail, digests, "
-        "M-PESA sandbox sync, and analytics for the React Native app."
+        "M-PESA sandbox sync, analytics, and Mizizi Gemini Live voice assistance."
     ),
     version="0.3.0",
     lifespan=lifespan,
@@ -55,6 +67,8 @@ app.include_router(digest.router)
 app.include_router(mpesa.router)
 app.include_router(analytics.router)
 app.include_router(chat.router)
+app.include_router(voice.router)
+app.include_router(mizizi_os.router)
 
 
 @app.get("/health")

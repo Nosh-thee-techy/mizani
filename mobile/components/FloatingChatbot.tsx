@@ -4,7 +4,12 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useRef } from 'react';
+import * as Speech from 'expo-speech';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
+import { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -37,9 +42,57 @@ export default function FloatingChatbot() {
   ]);
   const [loading, setLoading] = useState(false);
   const [expandedIndices, setExpandedIndices] = useState<Record<number, boolean>>({});
+  const [recognizing, setRecognizing] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [voiceError, setVoiceError] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
-  const onSend = async (textToSend: string) => {
+  useSpeechRecognitionEvent('start', () => {
+    setRecognizing(true);
+    setVoiceError('');
+  });
+
+  useSpeechRecognitionEvent('end', () => setRecognizing(false));
+
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript?.trim() || '';
+    setMessage(transcript);
+    if (event.isFinal && transcript) {
+      void onSend(transcript, true);
+    }
+  });
+
+  useSpeechRecognitionEvent('error', (event) => {
+    setRecognizing(false);
+    if (event.error !== 'aborted') {
+      setVoiceError(event.message || 'I could not understand that. Please try again.');
+    }
+  });
+
+  useEffect(() => {
+    return () => {
+      ExpoSpeechRecognitionModule.abort();
+      Speech.stop();
+    };
+  }, []);
+
+  const speakReply = (reply: string) => {
+    Speech.stop();
+    setSpeaking(true);
+    Speech.speak(reply, {
+      language: 'en-KE',
+      rate: 0.92,
+      pitch: 1,
+      onDone: () => setSpeaking(false),
+      onStopped: () => setSpeaking(false),
+      onError: () => {
+        setSpeaking(false);
+        setVoiceError('The answer is ready, but audio playback failed.');
+      },
+    });
+  };
+
+  async function onSend(textToSend: string, readReply = false) {
     if (!textToSend.trim() || loading) return;
 
     const userMsg = textToSend.trim();
@@ -55,6 +108,9 @@ export default function FloatingChatbot() {
     try {
       const res = await api.chat(userMsg, history);
       setHistory([...updatedHistory, { role: 'assistant', content: res.reply }]);
+      if (readReply) {
+        speakReply(res.reply);
+      }
       if (res.suggestions && res.suggestions.length > 0) {
         setSuggestions(res.suggestions);
       }
@@ -67,10 +123,54 @@ export default function FloatingChatbot() {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
+  }
+
+  const toggleListening = async () => {
+    if (recognizing) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+
+    if (loading) return;
+
+    Speech.stop();
+    setSpeaking(false);
+    setVoiceError('');
+
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permission.granted) {
+        setVoiceError('Microphone and speech recognition permission are required.');
+        return;
+      }
+
+      ExpoSpeechRecognitionModule.start({
+        lang: 'en-KE',
+        interimResults: true,
+        continuous: false,
+        maxAlternatives: 1,
+      });
+    } catch {
+      setVoiceError('Voice input needs a development build of the mobile app.');
+    }
+  };
+
+  const closeChat = () => {
+    ExpoSpeechRecognitionModule.abort();
+    Speech.stop();
+    setRecognizing(false);
+    setSpeaking(false);
+    setVisible(false);
   };
 
   const clearChat = () => {
+    ExpoSpeechRecognitionModule.abort();
+    Speech.stop();
     setHistory([]);
+    setMessage('');
+    setRecognizing(false);
+    setSpeaking(false);
+    setVoiceError('');
     setSuggestions([
       'What are my top customer balances?',
       'How much do I owe suppliers?',
@@ -99,7 +199,7 @@ export default function FloatingChatbot() {
         visible={visible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setVisible(false)}>
+        onRequestClose={closeChat}>
         <View style={[styles.modalOverlay, { backgroundColor: c.scrim }]}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -120,7 +220,18 @@ export default function FloatingChatbot() {
                 <Pressable onPress={clearChat} style={styles.headerBtn}>
                   <Ionicons name="trash-outline" size={20} color={c.textMuted} />
                 </Pressable>
-                <Pressable onPress={() => setVisible(false)} style={styles.headerBtn}>
+                {speaking && (
+                  <Pressable
+                    onPress={() => {
+                      Speech.stop();
+                      setSpeaking(false);
+                    }}
+                    style={styles.headerBtn}
+                    accessibilityLabel="Stop spoken response">
+                    <Ionicons name="volume-mute-outline" size={21} color={c.tint} />
+                  </Pressable>
+                )}
+                <Pressable onPress={closeChat} style={styles.headerBtn}>
                   <Ionicons name="close" size={24} color={c.text} />
                 </Pressable>
               </View>
@@ -220,8 +331,43 @@ export default function FloatingChatbot() {
               </View>
             )}
 
+            {(recognizing || voiceError) && (
+              <View style={styles.voiceStatus}>
+                <Ionicons
+                  name={recognizing ? 'mic' : 'alert-circle-outline'}
+                  size={15}
+                  color={recognizing ? c.tint : '#B42318'}
+                />
+                <Text
+                  style={[
+                    styles.voiceStatusText,
+                    { color: recognizing ? c.tint : '#B42318' },
+                  ]}>
+                  {recognizing ? 'Listening… speak your business question' : voiceError}
+                </Text>
+              </View>
+            )}
+
             {/* Input bar */}
             <View style={[styles.inputBar, { borderTopColor: c.border, backgroundColor: c.surface }]}>
+              <Pressable
+                onPress={toggleListening}
+                disabled={loading}
+                accessibilityLabel={recognizing ? 'Stop listening' : 'Ask by voice'}
+                style={[
+                  styles.voiceBtn,
+                  {
+                    backgroundColor: recognizing ? '#B42318' : c.tint + '18',
+                    borderColor: recognizing ? '#B42318' : c.tint,
+                    opacity: loading ? 0.5 : 1,
+                  },
+                ]}>
+                <Ionicons
+                  name={recognizing ? 'stop' : 'mic-outline'}
+                  size={19}
+                  color={recognizing ? '#FFF' : c.tint}
+                />
+              </Pressable>
               <TextInput
                 value={message}
                 onChangeText={setMessage}
@@ -385,6 +531,27 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     gap: 10,
+  },
+  voiceStatus: {
+    minHeight: 34,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  voiceStatusText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+  },
+  voiceBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chatInput: {
     flex: 1,

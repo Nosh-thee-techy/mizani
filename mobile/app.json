@@ -8,7 +8,14 @@
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Allow Mizizi to hear your business questions.",
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "NSSpeechRecognitionUsageDescription": "Allow Mizizi to turn your voice into text."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +24,12 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.mobile"
     },
     "web": {
       "bundler": "metro",
@@ -41,6 +53,17 @@
           "cameraPermission": "Allow Ledger Chain to photograph documents and dispatch stock."
         }
       ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Mizizi to hear your business questions.",
+          "speechRecognitionPermission": "Allow Mizizi to turn your voice into text.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ],
+      "@edkimmel/expo-audio-stream",
       "expo-font"
     ],
     "experiments": {

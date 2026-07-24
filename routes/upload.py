@@ -173,9 +173,19 @@ async def upload_document(
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to save upload: {exc}") from exc
 
+    # Vision path expects a photo/screenshot — reject empty or non-image early
+    if dest.suffix.lower() == ".pdf":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Use Upload PDF (batch) for multi-page PDFs, or upload a JPG/PNG "
+                "screenshot of the statement instead."
+            ),
+        )
+
     result = process_single_file(dest, source_type)
     if not result.get("success", True):
-        raise HTTPException(status_code=422, detail=result.get("error"))
+        raise HTTPException(status_code=422, detail=result.get("error") or "Upload failed")
     return result
 
 

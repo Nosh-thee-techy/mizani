@@ -88,6 +88,67 @@ def _insert_draft(transaction_id: int, draft_type: str, message_text: str) -> in
         raise RuntimeError(f"Failed to save draft: {exc}") from exc
 
 
+def ensure_pending_draft(transaction_id: int) -> dict[str, Any]:
+    """
+    Ensure a matched transaction has exactly one pending approval draft.
+
+    This is the automatic bridge between reconciliation and the human approval
+    inbox. Existing pending drafts are reused so retries remain idempotent.
+
+    Args:
+        transaction_id: Newly reconciled transaction id.
+
+    Returns:
+        Draft row as a dict, including a `created` flag.
+    """
+    tx = _get_matched_transaction(transaction_id)
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            f"""
+            SELECT * FROM {TABLE_DRAFTS}
+            WHERE transaction_id = ? AND approved = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (transaction_id, DRAFT_PENDING),
+        ).fetchone()
+
+    if existing is not None:
+        payload = {key: existing[key] for key in existing.keys()}
+        payload["created"] = False
+        return payload
+
+    if tx["direction"] == Direction.PAYABLE.value:
+        draft_payment_message(transaction_id)
+    elif tx["direction"] == Direction.RECEIVABLE.value:
+        draft_reminder_message(transaction_id)
+    else:
+        raise ValueError(
+            f"Unsupported direction '{tx['direction']}' for transaction {transaction_id}"
+        )
+
+    with get_connection() as conn:
+        created = conn.execute(
+            f"""
+            SELECT * FROM {TABLE_DRAFTS}
+            WHERE transaction_id = ? AND approved = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (transaction_id, DRAFT_PENDING),
+        ).fetchone()
+
+    if created is None:
+        raise RuntimeError(
+            f"Draft generation completed but no draft was saved for transaction {transaction_id}"
+        )
+
+    payload = {key: created[key] for key in created.keys()}
+    payload["created"] = True
+    return payload
+
+
 def draft_payment_message(transaction_id: int) -> str:
     """
     For a reconciled 'payable' transaction, drafts a message the

@@ -14,8 +14,8 @@ from constants import (
 from db.database import get_connection
 
 CHAT_SYSTEM_PROMPT = """
-You are the Mizani Business Assistant, an AI advisor for Kenyan wholesalers.
-You are helping the wholesaler manage their bookkeeping, cash flow, statements, and deliveries.
+You are Mizizi, the warm female voice co-helper inside Mizani for Kenyan wholesalers.
+You help with bookkeeping, cash flow, invoices, statements, and deliveries.
 
 You have access to the following real-time business context from the SQLite database:
 {context}
@@ -24,7 +24,8 @@ Rules:
 1. Answer the wholesaler's questions accurately using the provided data.
 2. Use a friendly Swahili/English mix (Sheng-light) naturally.
 3. Be concise and practical — wholesalers are busy people.
-4. At the very end of your response, output a suggestion JSON block wrapped in ---suggested--- tags containing 2 or 3 brief follow-up questions they could click next. Example:
+4. Never invent ledger figures; if data is missing, say so clearly.
+5. At the very end of your response, output a suggestion JSON block wrapped in ---suggested--- tags containing 2 or 3 brief follow-up questions they could click next. Example:
 ---suggested---
 [
   "How much does Kamau Hardware owe me?",
@@ -128,7 +129,7 @@ def ask_business_assistant(message: str, history: list[dict[str, str]] = None) -
             if "owe" in msg_lower or "supplier" in msg_lower or "deni" in msg_lower:
                 we_owe = db_context["financials"]["wholesaler_owes_payables"]
                 reply = (
-                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Mizizi (Local Fallback):\n\n"
                     f"Hapa kuna breakdown ya madeni yetu: You currently owe suppliers **KES {we_owe:,.0f}**. "
                     "You can manage draft payment alerts under the Inbox tab."
                 )
@@ -140,7 +141,7 @@ def ask_business_assistant(message: str, history: list[dict[str, str]] = None) -
                     for c in db_context["top_customers"]
                 ])
                 reply = (
-                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Mizizi (Local Fallback):\n\n"
                     f"Wateja wanaotudai outstanding balances total **KES {owed_to_us:,.0f}**.\n\n"
                     f"Top Buyers outstanding:\n{custs}\n\n"
                     "You can follow up with reminders under the Action Inbox."
@@ -150,7 +151,7 @@ def ask_business_assistant(message: str, history: list[dict[str, str]] = None) -
                 gaps = db_context["delivery_discrepancies"]
                 pending = db_context["pending_deliveries"]
                 reply = (
-                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Mizizi (Local Fallback):\n\n"
                     f"Status of deliveries today:\n"
                     f"- Pending in transit: **{pending}** deliveries\n"
                     f"- Discrepancy flags: **{gaps}** items flagged\n\n"
@@ -161,7 +162,7 @@ def ask_business_assistant(message: str, history: list[dict[str, str]] = None) -
                 owed_to_us = db_context["financials"]["owed_to_wholesaler_receivables"]
                 we_owe = db_context["financials"]["wholesaler_owes_payables"]
                 reply = (
-                    f"Mizani Assistant (Local Fallback):\n\n"
+                    f"Mizizi (Local Fallback):\n\n"
                     f"Habari! I am operating in local database mode. Here is your current ledger summary:\n"
                     f"- Owed to you (Receivables): **KES {owed_to_us:,.0f}**\n"
                     f"- You owe (Payables): **KES {we_owe:,.0f}**\n"
@@ -171,7 +172,7 @@ def ask_business_assistant(message: str, history: list[dict[str, str]] = None) -
                 suggestions = ["What are my top customer balances?", "How much do I owe suppliers?"]
         except Exception as fallback_err:
             return {
-                "reply": f"Mizani Assistant: Gemma API rate limit reached (HTTP 429) and local helper failed: {fallback_err}. Original error: {e}",
+                "reply": f"Mizizi: Gemma API rate limit reached (HTTP 429) and local helper failed: {fallback_err}. Original error: {e}",
                 "suggestions": ["What are my top customer balances?", "How much do I owe suppliers?"]
             }
 

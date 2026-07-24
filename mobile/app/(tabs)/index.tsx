@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useState } from 'react';
 import {
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -34,8 +35,17 @@ import {
   StatCard,
   useTheme,
 } from '@/components/Ui';
-import { api, kes, OverviewResponse } from '@/lib/api';
+import {
+  api,
+  CashCrisisResponse,
+  FinancingPackResponse,
+  kes,
+  OverviewResponse,
+  TrustScoresResponse,
+} from '@/lib/api';
 
+const MIZIZI_FULL = require('@/assets/images/mizizi-full.png');
+const MIZIZI_AVATAR = require('@/assets/images/mizizi-avatar.png');
 // ── Avatar initials helper ────────────────────────────────────
 function initials(name: string) {
   return name
@@ -139,13 +149,25 @@ function FlagChip({
 export default function PulseScreen() {
   const c = useTheme();
   const [data, setData] = useState<OverviewResponse | null>(null);
+  const [crisis, setCrisis] = useState<CashCrisisResponse | null>(null);
+  const [trust, setTrust] = useState<TrustScoresResponse | null>(null);
+  const [finance, setFinance] = useState<FinancingPackResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setData(await api.overview(7));
+      const [overview, crisisData, trustData, financeData] = await Promise.all([
+        api.overview(7),
+        api.cashCrisis().catch(() => null),
+        api.trustScores(5).catch(() => null),
+        api.financingPack().catch(() => null),
+      ]);
+      setData(overview);
+      setCrisis(crisisData);
+      setTrust(trustData);
+      setFinance(financeData);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load pulse');
     } finally {
@@ -191,11 +213,10 @@ export default function PulseScreen() {
           />
         }>
 
-        {/* ── Hero Gradient Header ──────────────────────────── */}
+        {/* ── Hero: Mizizi first ─────────────────────────────── */}
         <LinearGradient
           colors={[c.gradientStart, c.gradientEnd]}
           style={styles.hero}>
-          {/* Branding logo row */}
           <View style={styles.heroTopRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={[styles.heroBadge, { backgroundColor: '#F59E0B' }]}>
@@ -210,68 +231,155 @@ export default function PulseScreen() {
             </View>
           </View>
 
-          {/* Graphical Summary Chart Card */}
-          <View style={[styles.narrativeCard, { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.2)' }]}>
-            <View style={styles.narrativeHeader}>
-              <Ionicons name="bar-chart-outline" size={14} color="#FFFDF8" />
-              <Text style={styles.narrativeLabel}>Weekly Cash Flow & Sales Share</Text>
+          {/* Large Mizizi portrait + talk CTA */}
+          <Pressable
+            onPress={() => router.push('/mizizi')}
+            accessibilityRole="button"
+            accessibilityLabel="Talk to Mizizi"
+            style={({ pressed }) => [
+              styles.miziziHero,
+              { opacity: pressed ? 0.92 : 1 },
+            ]}>
+            <View style={styles.miziziPortraitWrap}>
+              <View style={styles.miziziGlow} />
+              <Image
+                source={MIZIZI_FULL}
+                style={styles.miziziPortrait}
+                resizeMode="cover"
+              />
+              <View style={styles.miziziOnlineDot} />
             </View>
-            
-            {/* 1. Cash In vs Cash Out Comparison Tracker */}
-            <View style={{ marginTop: 10 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ color: '#FFFDF8', fontSize: 11, fontFamily: 'Inter_500Medium' }}>Cash Inflow</Text>
-                <Text style={{ color: '#FFFDF8', fontSize: 11, fontFamily: 'Inter_500Medium' }}>Cash Outflow</Text>
+            <View style={styles.miziziCopy}>
+              <Text style={styles.miziziName}>Mizizi</Text>
+              <Text style={styles.miziziTagline}>Your wholesaler co-helper</Text>
+              <Text style={styles.miziziHint}>
+                Sales today · who owes me · who gets goods
+              </Text>
+              <View style={styles.talkPill}>
+                <Ionicons name="mic" size={18} color="#0F6B4C" />
+                <Text style={styles.talkPillText}>Talk to Mizizi</Text>
               </View>
-              {/* Dual bar chart tracker */}
-              <View style={{ height: 12, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.15)', flexDirection: 'row', overflow: 'hidden' }}>
-                <View
-                  style={{
-                    flex: Math.max(1, m?.period_money_in ?? 0),
-                    backgroundColor: c.success,
-                  }}
-                />
-                <View
-                  style={{
-                    flex: Math.max(1, m?.period_money_out ?? 0),
-                    backgroundColor: c.danger,
-                  }}
-                />
+            </View>
+          </Pressable>
+        </LinearGradient>
+
+        {/* ── Content area ─────────────────────────────────── */}
+        <View style={styles.content}>
+          {error ? <ErrorText message={error} /> : null}
+
+          {/* WhatsApp simulation — sits on white like a chat preview */}
+          <Pressable
+            onPress={() => router.push('/mizizi-os')}
+            accessibilityRole="button"
+            accessibilityLabel="Open Mizizi OS WhatsApp simulation"
+            style={({ pressed }) => [
+              styles.waCard,
+              {
+                backgroundColor: c.surface,
+                borderColor: c.border,
+                opacity: pressed ? 0.92 : 1,
+                shadowColor: c.shadow,
+              },
+            ]}>
+            <View style={styles.waCardTop}>
+              <View style={styles.waAvatarWrap}>
+                <Image source={MIZIZI_AVATAR} style={styles.waAvatar} />
+                <View style={styles.waBadge}>
+                  <Ionicons name="logo-whatsapp" size={12} color="#FFF" />
+                </View>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
+              <View style={styles.waCopy}>
+                <Text style={[styles.waTitleLight, { color: c.text }]}>Mizizi OS</Text>
+                <Text style={[styles.waPreviewLight, { color: c.textMuted }]} numberOfLines={1}>
+                  WhatsApp simulation · cash, credit & deliveries
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+            </View>
+            <View style={[styles.waBubble, { backgroundColor: '#E7F8EE' }]}>
+              <Text style={[styles.waBubbleText, { color: c.text }]} numberOfLines={2}>
+                Habari — ask me “who owes me money?” or “who should get goods today?”
+              </Text>
+            </View>
+          </Pressable>
+
+          {/* Weekly cash — white section, clearer layout */}
+          <SectionLabel label="This week’s cash" />
+          <Card elevated>
+            <View style={styles.cashHeader}>
+              <Text style={[styles.cashTitle, { color: c.text }]}>Cash flow</Text>
+              <Muted>Last {m?.period_days ?? 7} days</Muted>
+            </View>
+            <View style={styles.cashCols}>
+              <View style={[styles.cashCol, { backgroundColor: c.successBg }]}>
+                <View style={styles.cashColHead}>
+                  <Ionicons name="arrow-down-circle" size={16} color={c.success} />
+                  <Muted>Inflow</Muted>
+                </View>
+                <Text style={[styles.cashValue, { color: c.success }]}>
                   {kes(m?.period_money_in ?? 0)}
                 </Text>
-                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
+              </View>
+              <View style={[styles.cashCol, { backgroundColor: c.dangerBg }]}>
+                <View style={styles.cashColHead}>
+                  <Ionicons name="arrow-up-circle" size={16} color={c.danger} />
+                  <Muted>Outflow</Muted>
+                </View>
+                <Text style={[styles.cashValue, { color: c.danger }]}>
                   {kes(m?.period_money_out ?? 0)}
                 </Text>
               </View>
             </View>
-
-            {/* 2. Top Buyers Share representation */}
-            {buyers.length > 0 && (
-              <View style={{ marginTop: 14, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: 10 }}>
-                <Text style={{ color: '#FFFDF8', fontSize: 11, fontFamily: 'Inter_600SemiBold', marginBottom: 6 }}>
-                  Top Buyers Distribution
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 6, height: 24 }}>
-                  {buyers.map((b, idx) => {
-                    const pctShare = maxBuyer > 0 ? (b.total_amount / maxBuyer) * 100 : 0;
-                    const colors = [c.tint, c.accent, '#10B981', '#3B82F6'];
-                    const col = colors[idx % colors.length];
+            <View style={[styles.cashTrack, { backgroundColor: c.border }]}>
+              <View
+                style={{
+                  flex: Math.max(1, m?.period_money_in ?? 0),
+                  backgroundColor: c.success,
+                  borderTopLeftRadius: 5,
+                  borderBottomLeftRadius: 5,
+                }}
+              />
+              <View
+                style={{
+                  flex: Math.max(1, m?.period_money_out ?? 0),
+                  backgroundColor: c.danger,
+                  borderTopRightRadius: 5,
+                  borderBottomRightRadius: 5,
+                }}
+              />
+            </View>
+            <View style={styles.cashNetRow}>
+              <Muted>Net this week</Muted>
+              <Text
+                style={[
+                  styles.cashNet,
+                  {
+                    color:
+                      (m?.period_money_in ?? 0) - (m?.period_money_out ?? 0) >= 0
+                        ? c.success
+                        : c.danger,
+                  },
+                ]}>
+                {kes((m?.period_money_in ?? 0) - (m?.period_money_out ?? 0))}
+              </Text>
+            </View>
+            {buyers.length > 0 ? (
+              <View style={[styles.shareBlock, { borderTopColor: c.border }]}>
+                <Muted style={{ marginBottom: 8 }}>Sales share by buyer</Muted>
+                <View style={styles.shareRow}>
+                  {buyers.slice(0, 4).map((b, idx) => {
+                    const colors = [c.tint, c.accent, c.gold, c.info];
                     return (
                       <View
                         key={b.name}
-                        style={{
-                          flex: Math.max(10, pctShare),
-                          backgroundColor: col,
-                          borderRadius: 4,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          paddingHorizontal: 4,
-                        }}
-                      >
-                        <Text style={{ color: '#FFFDF8', fontSize: 9, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
+                        style={[
+                          styles.shareSeg,
+                          {
+                            flex: Math.max(12, b.total_amount),
+                            backgroundColor: colors[idx % colors.length],
+                          },
+                        ]}>
+                        <Text style={styles.shareSegText} numberOfLines={1}>
                           {initials(b.name)}
                         </Text>
                       </View>
@@ -279,13 +387,111 @@ export default function PulseScreen() {
                   })}
                 </View>
               </View>
-            )}
-          </View>
-        </LinearGradient>
+            ) : null}
+          </Card>
 
-        {/* ── Content area ─────────────────────────────────── */}
-        <View style={styles.content}>
-          {error ? <ErrorText message={error} /> : null}
+          {crisis ? (
+            <>
+              <SectionLabel label="Cash Crisis Mode" />
+              <Pressable onPress={() => router.push('/mizizi-os')}>
+                <Card elevated>
+                  <View style={styles.crisisHeader}>
+                    <Badge
+                      label={String(crisis.severity).toUpperCase()}
+                      variant={
+                        crisis.severity === 'critical'
+                          ? 'danger'
+                          : crisis.severity === 'warning'
+                            ? 'warning'
+                            : 'info'
+                      }
+                    />
+                    <Muted>{crisis.as_of}</Muted>
+                  </View>
+                  <Body style={{ marginTop: 8 }}>{crisis.headline}</Body>
+                  <View style={[styles.row, { marginTop: 10 }]}>
+                    <View style={[styles.half, styles.miniMetric, { backgroundColor: c.warningBg }]}>
+                      <Text style={[styles.miniValue, { color: c.warning }]}>
+                        {kes(crisis.open_receivables)}
+                      </Text>
+                      <Muted>Open receivables</Muted>
+                    </View>
+                    <View style={[styles.half, styles.miniMetric, { backgroundColor: c.dangerBg }]}>
+                      <Text style={[styles.miniValue, { color: c.danger }]}>
+                        {kes(crisis.overdue_30_plus)}
+                      </Text>
+                      <Muted>30+ days overdue</Muted>
+                    </View>
+                  </View>
+                  <Muted style={{ marginTop: 8 }}>{crisis.runway_hint}</Muted>
+                  {(crisis.recommended_actions || []).slice(0, 2).map((a) => (
+                    <Text key={a.detail} style={[styles.actionLine, { color: c.text }]}>
+                      • {a.detail}
+                    </Text>
+                  ))}
+                </Card>
+              </Pressable>
+            </>
+          ) : null}
+
+          {trust?.buyers?.length ? (
+            <>
+              <SectionLabel label="Buyer Trust Scores" />
+              <Card>
+                {trust.buyers.slice(0, 4).map((b, i) => (
+                  <View key={b.name}>
+                    <View style={styles.trustRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.buyerName, { color: c.text }]}>{b.name}</Text>
+                        <Muted>
+                          {b.band}
+                          {b.credit_hold ? ' · credit hold' : ''} · open {kes(b.open_amount)}
+                        </Muted>
+                      </View>
+                      <Text
+                        style={[
+                          styles.trustScore,
+                          {
+                            color:
+                              b.trust_score >= 80
+                                ? c.success
+                                : b.trust_score >= 55
+                                  ? c.warning
+                                  : c.danger,
+                          },
+                        ]}>
+                        {b.trust_score}
+                      </Text>
+                    </View>
+                    {i < Math.min(3, trust.buyers.length - 1) && (
+                      <View style={[styles.itemDivider, { backgroundColor: c.border }]} />
+                    )}
+                  </View>
+                ))}
+              </Card>
+            </>
+          ) : null}
+
+          {finance ? (
+            <>
+              <SectionLabel label="Financing Bridge" />
+              <Pressable onPress={() => router.push('/mizizi-os')}>
+                <Card>
+                  <View style={styles.crisisHeader}>
+                    <Text style={[styles.buyerName, { color: c.text }]}>Receivables pack</Text>
+                    <Badge label={`${finance.readiness_score}/100`} variant="info" />
+                  </View>
+                  <Muted style={{ marginTop: 6 }}>
+                    Eligible collateral ~ {kes(finance.summary.eligible_collateral_estimate)} ·{' '}
+                    {finance.summary.high_risk_buyers} high-risk buyers
+                  </Muted>
+                  <Body style={{ marginTop: 8 }}>
+                    Clean books for SACCO/lender talks — not a loan offer.
+                  </Body>
+                </Card>
+              </Pressable>
+            </>
+          ) : null}
 
           {/* Metric grid 2×2 */}
           <SectionLabel label="Balances" />
@@ -429,30 +635,231 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  narrativeCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    gap: 10,
+  miziziHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 4,
   },
-  narrativeHeader: {
+  miziziPortraitWrap: {
+    width: 128,
+    height: 168,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: 'rgba(255,253,248,0.92)',
+    backgroundColor: '#E8DFD0',
+  },
+  miziziGlow: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    right: -8,
+    bottom: -8,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: 'rgba(245,158,11,0.4)',
+    zIndex: -1,
+  },
+  miziziPortrait: {
+    width: '100%',
+    height: '100%',
+  },
+  miziziOnlineDot: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#32D583',
+    borderWidth: 3,
+    borderColor: '#0F6B4C',
+  },
+  miziziCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  miziziName: {
+    color: '#FFFDF8',
+    fontSize: 28,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.5,
+  },
+  miziziTagline: {
+    color: 'rgba(255,253,248,0.88)',
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+  },
+  miziziHint: {
+    color: 'rgba(255,253,248,0.62)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 6,
+  },
+  talkPill: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    minHeight: 42,
+    paddingHorizontal: 16,
+    borderRadius: 21,
+    backgroundColor: '#FFFDF8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  talkPillText: {
+    color: '#0F6B4C',
+    fontSize: 14,
+    fontFamily: 'Inter_700Bold',
+  },
+  waCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+    marginBottom: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  waCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  waAvatarWrap: {
+    width: 48,
+    height: 48,
+  },
+  waAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  waBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#25D366',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFDF8',
+  },
+  waCopy: { flex: 1 },
+  waTitleLight: {
+    fontSize: 16,
+    fontFamily: 'Inter_700Bold',
+  },
+  waPreviewLight: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  waBubble: {
+    borderRadius: 14,
+    borderTopLeftRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  waBubbleText: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 18,
+  },
+  cashHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cashTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter_700Bold',
+  },
+  cashCols: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  cashCol: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+  },
+  cashColHead: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  narrativeLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    fontWeight: '600',
-    color: '#F59E0B',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+  cashValue: {
+    fontSize: 17,
+    fontFamily: 'Inter_700Bold',
   },
-  narrativeText: {
-    fontSize: 14,
+  cashTrack: {
+    height: 10,
+    borderRadius: 5,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  cashNetRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cashNet: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+  },
+  shareBlock: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  shareRow: { flexDirection: 'row', gap: 6, height: 28 },
+  shareSeg: {
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  shareSegText: {
+    color: '#FFFDF8',
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+  },
+  crisisHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionLine: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 18,
     fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,253,248,0.9)',
-    lineHeight: 22,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  trustScore: {
+    fontSize: 22,
+    fontFamily: 'Inter_700Bold',
+  },
+  miniMetric: {
+    borderRadius: 12,
+    padding: 10,
+  },
+  miniValue: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+    marginBottom: 2,
   },
   content: { paddingHorizontal: 16, paddingTop: 8 },
   row: { flexDirection: 'row', gap: 10, marginBottom: 0 },

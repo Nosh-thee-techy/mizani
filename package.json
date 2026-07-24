@@ -1,0 +1,9 @@
+{
+  "name": "mizani",
+  "private": true,
+  "description": "Mizani wholesaler ledger — Expo web on Vercel, FastAPI API on Render",
+  "scripts": {
+    "build": "cd mobile && npm ci && npm run build",
+    "start:api": "uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+  }
+}

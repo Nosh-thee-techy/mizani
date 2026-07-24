@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import base64
 import json
-import mimetypes
 import os
+import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,56 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 class GemmaClientError(RuntimeError):
     """Raised when a Gemma 4 API call fails or returns an unexpected payload."""
+
+
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_SECONDS = 5.0
+
+
+def _retry_delay(response: httpx.Response, attempt: int) -> float:
+    """
+    Determine how long to wait after a transient cloud API failure.
+
+    Args:
+        response: Failed HTTP response.
+        attempt: Zero-based retry attempt.
+
+    Returns:
+        Delay in seconds, capped to keep demo requests responsive.
+    """
+    retry_after = response.headers.get("retry-after")
+    if retry_after:
+        try:
+            return min(float(retry_after), 30.0)
+        except ValueError:
+            pass
+
+    # Google often puts "Please retry in 4.8s" in the JSON error text
+    # instead of a standard Retry-After header.
+    match = re.search(r"retry in\s+([0-9.]+)s", response.text, flags=re.IGNORECASE)
+    if match:
+        return min(float(match.group(1)) + 0.5, 30.0)
+
+    return min(DEFAULT_RETRY_SECONDS * (2**attempt), 30.0)
+
+
+def _strip_reasoning_blocks(content: str) -> str:
+    """
+    Remove provider-emitted hidden reasoning tags from user-visible content.
+
+    Args:
+        content: Raw assistant text.
+
+    Returns:
+        Text without `<thought>` / `<think>` blocks.
+    """
+    return re.sub(
+        r"<(?:thought|think)>.*?</(?:thought|think)>",
+        "",
+        content,
+        flags=re.IGNORECASE | re.DOTALL,
+    ).strip()
 
 
 def _settings() -> tuple[str, str, str]:
@@ -45,6 +96,29 @@ def _settings() -> tuple[str, str, str]:
     return api_key, base_url, model
 
 
+def _detect_image_mime(data: bytes) -> str | None:
+    """
+    Detect image MIME from file magic bytes.
+
+    Args:
+        data: Raw file bytes.
+
+    Returns:
+        MIME type string, or None when the payload is not a supported image.
+    """
+    if len(data) < 12:
+        return None
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"GIF87a") or data.startswith(b"GIF89a"):
+        return "image/gif"
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 def _encode_image_as_data_url(image_path: str) -> str:
     """
     Read an image from disk and return a data URL for vision requests.
@@ -59,11 +133,21 @@ def _encode_image_as_data_url(image_path: str) -> str:
     if not path.exists():
         raise GemmaClientError(f"Image not found: {image_path}")
 
-    mime, _ = mimetypes.guess_type(path.name)
+    data = path.read_bytes()
+    mime = _detect_image_mime(data)
     if mime is None:
-        mime = "image/jpeg"
+        if data[:4] == b"%PDF":
+            raise GemmaClientError(
+                "PDF vision is not supported here — upload a photo or screenshot "
+                "of the M-Pesa / bank statement (JPG or PNG), or use Upload PDF batch."
+            )
+        hint = data[:80].decode("utf-8", errors="ignore").strip()
+        raise GemmaClientError(
+            "File is not a valid image (JPG/PNG/WebP). "
+            f"Upload a real statement photo. Preview: {hint[:60]!r}"
+        )
 
-    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    encoded = base64.b64encode(data).decode("ascii")
     return f"data:{mime};base64,{encoded}"
 
 
@@ -111,9 +195,25 @@ def chat(
         "Content-Type": "application/json",
     }
 
+    max_retries = max(
+        0,
+        int(os.getenv("GEMMA_MAX_RETRIES", str(DEFAULT_MAX_RETRIES))),
+    )
+
     try:
         with httpx.Client(timeout=120.0) as client:
-            response = client.post(url, headers=headers, json=payload)
+            response: httpx.Response | None = None
+            for attempt in range(max_retries + 1):
+                response = client.post(url, headers=headers, json=payload)
+                if (
+                    response.status_code not in RETRYABLE_STATUS_CODES
+                    or attempt == max_retries
+                ):
+                    break
+                time.sleep(_retry_delay(response, attempt))
+
+            if response is None:
+                raise GemmaClientError("Cloud model request did not produce a response")
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as exc:
@@ -179,7 +279,7 @@ def chat_vision_json(
         raise GemmaClientError("Gemma returned empty content for vision JSON request")
 
     # Strip optional markdown fences if the model ignores json_object mode
-    cleaned = content.strip()
+    cleaned = _strip_reasoning_blocks(content)
     if cleaned.startswith("```"):
         lines = cleaned.splitlines()
         # drop first fence line and optional trailing fence
@@ -259,4 +359,4 @@ def chat_text(system_prompt: str, user_prompt: str) -> str:
         )
     if not isinstance(content, str) or not content.strip():
         raise GemmaClientError("Gemma returned empty text content")
-    return content.strip()
+    return _strip_reasoning_blocks(content)

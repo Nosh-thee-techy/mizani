@@ -17,7 +17,7 @@ function TabIcon({ name, color, size = 24 }: { name: IoniconName; color: string;
 }
 
 import { View } from 'react-native';
-import FloatingChatbot from '@/components/FloatingChatbot';
+import FloatingMizizi from '@/components/FloatingMizizi';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -54,7 +54,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Mizani',
+            title: 'Mizizi',
             tabBarIcon: ({ color }) => (
               <TabIcon name="home-outline" color={color as string} />
             ),
@@ -98,7 +98,7 @@ export default function TabLayout() {
         />
         <Tabs.Screen name="two" options={{ href: null }} />
       </Tabs>
-      <FloatingChatbot />
+      <FloatingMizizi />
     </View>
   );
 }

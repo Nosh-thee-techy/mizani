@@ -52,6 +52,14 @@ function RootLayoutNav() {
   const content = (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="mizizi"
+        options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="mizizi-os"
+        options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
       <Stack.Screen name="+not-found" />
       <Stack.Screen
         name="counterparty/[name]"

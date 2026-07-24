@@ -306,11 +306,17 @@ export default function InboxScreen() {
     setBusyId(transactionId);
     try {
       const result = await api.reconcile(transactionId);
+      const automation = result.automation as
+        | { draft_ready?: boolean; message?: string }
+        | undefined;
+      const reconciliationMessage = result.discrepancy_notes
+        ? String(result.discrepancy_notes)
+        : `Status: ${result.status}`;
       Alert.alert(
         'Reconcile',
-        result.discrepancy_notes
-          ? String(result.discrepancy_notes)
-          : `Status: ${result.status}`,
+        automation?.message
+          ? `${reconciliationMessage}\n\n${automation.message}`
+          : reconciliationMessage,
       );
       await load();
     } catch (e) {
