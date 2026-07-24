@@ -239,10 +239,10 @@ export default function PulseScreen() {
                 />
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                <Text style={{ color: c.success, fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
                   {kes(m?.period_money_in ?? 0)}
                 </Text>
-                <Text style={{ color: c.danger, fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>
                   {kes(m?.period_money_out ?? 0)}
                 </Text>
               </View>
