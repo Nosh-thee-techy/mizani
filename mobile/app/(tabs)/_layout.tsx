@@ -1,70 +1,94 @@
+/**
+ * Wholesaler tab navigation: pulse, money, customers, goods, inbox.
+ */
+
 import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() ?? 'light';
+  const c = Colors[colorScheme];
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
+        tabBarActiveTintColor: c.tabIconSelected,
+        tabBarInactiveTintColor: c.tabIconDefault,
+        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border },
+        headerStyle: { backgroundColor: c.background },
+        headerTintColor: c.text,
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
+          title: 'Pulse',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
+              name={{ ios: 'heart.text.square', android: 'favorite', web: 'favorite' }}
               tintColor={color}
-              size={28}
+              size={26}
             />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="money"
         options={{
-          title: 'Tab Two',
+          title: 'Money',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
+              name={{ ios: 'banknote', android: 'payments', web: 'payments' }}
               tintColor={color}
-              size={28}
+              size={26}
             />
           ),
         }}
       />
+      <Tabs.Screen
+        name="customers"
+        options={{
+          title: 'People',
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{ ios: 'person.2', android: 'group', web: 'group' }}
+              tintColor={color}
+              size={26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="goods"
+        options={{
+          title: 'Goods',
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{ ios: 'shippingbox', android: 'inventory', web: 'inventory' }}
+              tintColor={color}
+              size={26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="inbox"
+        options={{
+          title: 'Inbox',
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{ ios: 'tray.full', android: 'inbox', web: 'inbox' }}
+              tintColor={color}
+              size={26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen name="two" options={{ href: null }} />
     </Tabs>
   );
 }

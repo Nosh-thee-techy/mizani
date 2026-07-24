@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Ledger Chain",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,7 +31,14 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#F3EEE4"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Ledger Chain to attach invoice and statement photos.",
+          "cameraPermission": "Allow Ledger Chain to photograph documents and dispatch stock."
         }
       ]
     ],
